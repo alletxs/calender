@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Interactive Calendar Attendance Tracker</title>
+  <style>
+    body { font-family: sans-serif; margin: 20px; }
+    h1 { text-align: center; }
+    .calendar { display: grid; grid-template-columns: repeat(12, 1fr); gap: 10px; font-size: 12px; }
+    .month { border: 1px solid #ccc; padding: 5px; }
+    .month-name { text-align: center; font-weight: bold; margin-bottom: 5px; }
+    .days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+    .day { text-align: center; padding: 3px; border-radius: 4px; cursor: pointer; position: relative; }
+    .holiday { background-color: #ff9999; }
+    .vacation { background-color: #b3d9ff; }
+    .sunday { background-color: #ffd9b3; }
+    .non-functional { background-color: #ffb3e6; }
+    .present { background-color: #b6e2b6; }
+    .absent { background-color: #f2b6b6; }
+    .tooltip { position: relative; }
+    .tooltip:hover::after {
+      content: attr(data-tip);
+      position: absolute;
+      top: -20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #333;
+      color: #fff;
+      padding: 2px 5px;
+      border-radius: 4px;
+      font-size: 10px;
+      white-space: nowrap;
+    }
+    .summary { margin-top: 20px; }
+    .summary table { width: 100%; border-collapse: collapse; }
+    .summary th, .summary td { border: 1px solid #aaa; padding: 6px; text-align: center; }
+  </style>
+</head>
+<body>
+  <h1>School Calendar & Attendance (Apr 2025 – Mar 2026)</h1>
+  <div class="calendar" id="calendar"></div>
+  <div class="summary">
+    <h2>Attendance Summary</h2>
+    <table>
+      <tr><th>Present Days</th><th>Absent Days</th><th>Non-Functional Days</th><th>Total Working Days</th><th>Attendance %</th></tr>
+      <tr><td id="presentCount">0</td><td id="absentCount">0</td><td id="nonFunctionalCount">0</td><td id="workingCount">0</td><td id="percentage">0%</td></tr>
+    </table>
+    <button id="markAbsentBtn">Mark Absent Day</button>
+    <button id="resetBtn">Reset Absent Count</button>
+  </div>
+  <script>
+    const holidays = {
+      "2025-04-06": "Ram Navmi", "2025-04-10": "Mahavir Jayanti",
+      "2025-04-14": "Ambedkar Jayanti", "2025-04-18": "Good Friday",
+      "2025-05-12": "Buddha Purnima", "2025-06-07": "Eid-ul-Zuha",
+      "2025-07-06": "Muharram", "2025-08-09": "Raksha Bandhan",
+      "2025-08-16": "Janmashtami", "2025-09-05": "Eid-ul-Milad",
+      "2025-09-30": "Ashtami", "2025-10-01": "Navami",
+      "2025-10-02": "Gandhi Jayanti", "2025-10-20": "Diwali",
+      "2025-10-21": "Diwali", "2025-10-22": "Diwali",
+      "2025-10-23": "Bhai Dooj", "2025-11-05": "Guru Nanak Jayanti",
+      "2025-12-25": "Christmas", "2026-01-14": "Makar Sankranti",
+      "2026-02-15": "Maha Shivratri", "2026-03-04": "Holi",
+      "2026-03-05": "Holi", "2026-03-20": "Alvida",
+      "2026-03-21": "Eid-ul-Fitr", "2026-03-26": "Ram Navmi"
+    };
+    const vacations = [["2025-05-30", "2025-06-30"], ["2025-12-31", "2026-01-07"]];
+    const isVacation = date => vacations.some(([start, end]) => new Date(date) >= new Date(start) && new Date(date) <= new Date(end));
+    const isSunday = date => new Date(date).getDay() === 0;
+    const isSaturday = date => new Date(date).getDay() === 6;
+    const months = ["Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec","Jan","Feb","Mar"];
+    const daysInMonth = [30,31,30,31,31,30,31,30,31,31,28,31];
+    const calendar = document.getElementById("calendar");
+    let present = 0, absent = 0, total = 0, nonFunctional = 0;
+    for (let m = 0; m < 12; m++) {
+      let monthDiv = document.createElement("div");
+      monthDiv.className = "month";
+      monthDiv.innerHTML = `<div class='month-name'>${months[m]}</div><div class='days'></div>`;
+      const daysDiv = monthDiv.querySelector(".days");
+      const year = (m <= 8) ? 2025 : 2026;
+      for (let d = 1; d <= daysInMonth[m]; d++) {
+        let dateStr = `${year}-${String(m < 9 ? m + 4 : m - 8).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        let div = document.createElement("div");
+        div.className = "day tooltip";
+        div.textContent = d;
+        div.dataset.date = dateStr;
+        if (holidays[dateStr]) { div.classList.add("holiday"); div.dataset.tip = holidays[dateStr]; }
+        else if (isVacation(dateStr)) { div.classList.add("vacation"); div.dataset.tip = "Vacation"; }
+        else if (isSunday(dateStr)) { div.classList.add("sunday"); div.dataset.tip = "Sunday Off"; }
+        else if (isSaturday(dateStr)) { div.classList.add("sunday"); div.dataset.tip = "Saturday Off (default)"; }
+        else {
+          div.classList.add("present");
+          total++;
+        }
+        div.addEventListener("click", function() {
+          if (this.classList.contains("present")) {
+            this.classList.remove("present");
+            this.classList.add("absent");
+            absent++;
+          } else if (this.classList.contains("absent")) {
+            this.classList.remove("absent");
+            this.classList.add("non-functional");
+            absent--; nonFunctional++;
+          } else if (this.classList.contains("non-functional")) {
+            this.classList.remove("non-functional");
+            this.classList.add("present");
+            nonFunctional--;
+          }
+          updateSummary();
+        });
+        daysDiv.appendChild(div);
+      }
+      calendar.appendChild(monthDiv);
+    }
+    function updateSummary() {
+      let workingDays = total - nonFunctional;
+      let presentDays = total - absent - nonFunctional;
+      let percentage = workingDays > 0 ? ((presentDays / workingDays) * 100).toFixed(2) : 0;
+      document.getElementById("presentCount").textContent = presentDays;
+      document.getElementById("absentCount").textContent = absent;
+      document.getElementById("nonFunctionalCount").textContent = nonFunctional;
+      document.getElementById("workingCount").textContent = workingDays;
+      document.getElementById("percentage").textContent = `${percentage}%`;
+    }
+    document.getElementById("markAbsentBtn").addEventListener("click", () => {
+      if (total > absent) { absent++; updateSummary(); }
+    });
+    document.getElementById("resetBtn").addEventListener("click", () => {
+      absent = 0; updateSummary();
+    });
+    updateSummary();
+  </script>
+</body>
+</html>
