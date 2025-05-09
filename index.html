@@ -18,7 +18,6 @@
     .non-functional { background-color: #ffb3e6; }
     .present { background-color: #b6e2b6; }
     .absent { background-color: #f2b6b6; }
-    .tooltip { position: relative; }
     .tooltip:hover::after {
       content: attr(data-tip);
       position: absolute;
@@ -48,7 +47,9 @@
     </table>
     <button id="markAbsentBtn">Mark Absent Day</button>
     <button id="resetBtn">Reset Absent Count</button>
+    <button onclick="localStorage.removeItem('attendanceData'); location.reload();">Clear Saved Data</button>
   </div>
+
   <script>
     const holidays = {
       "2025-04-06": "Ram Navmi", "2025-04-10": "Mahavir Jayanti",
@@ -72,27 +73,51 @@
     const months = ["Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec","Jan","Feb","Mar"];
     const daysInMonth = [30,31,30,31,31,30,31,30,31,31,28,31];
     const calendar = document.getElementById("calendar");
+
     let present = 0, absent = 0, total = 0, nonFunctional = 0;
+    const savedData = JSON.parse(localStorage.getItem("attendanceData") || "{}");
+
     for (let m = 0; m < 12; m++) {
       let monthDiv = document.createElement("div");
       monthDiv.className = "month";
       monthDiv.innerHTML = `<div class='month-name'>${months[m]}</div><div class='days'></div>`;
       const daysDiv = monthDiv.querySelector(".days");
       const year = (m <= 8) ? 2025 : 2026;
+
       for (let d = 1; d <= daysInMonth[m]; d++) {
         let dateStr = `${year}-${String(m < 9 ? m + 4 : m - 8).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
         let div = document.createElement("div");
         div.className = "day tooltip";
         div.textContent = d;
         div.dataset.date = dateStr;
-        if (holidays[dateStr]) { div.classList.add("holiday"); div.dataset.tip = holidays[dateStr]; }
-        else if (isVacation(dateStr)) { div.classList.add("vacation"); div.dataset.tip = "Vacation"; }
-        else if (isSunday(dateStr)) { div.classList.add("sunday"); div.dataset.tip = "Sunday Off"; }
-        else if (isSaturday(dateStr)) { div.classList.add("sunday"); div.dataset.tip = "Saturday Off (default)"; }
-        else {
-          div.classList.add("present");
+
+        let status = savedData[dateStr];
+        if (holidays[dateStr]) {
+          div.classList.add("holiday");
+          div.dataset.tip = holidays[dateStr];
+        } else if (isVacation(dateStr)) {
+          div.classList.add("vacation");
+          div.dataset.tip = "Vacation";
+        } else if (isSunday(dateStr)) {
+          div.classList.add("sunday");
+          div.dataset.tip = "Sunday Off";
+        } else if (isSaturday(dateStr)) {
+          div.classList.add("sunday");
+          div.dataset.tip = "Saturday Off (default)";
+        } else {
+          if (status === "absent") {
+            div.classList.add("absent");
+            absent++;
+          } else if (status === "non-functional") {
+            div.classList.add("non-functional");
+            nonFunctional++;
+          } else {
+            div.classList.add("present");
+            present++;
+          }
           total++;
         }
+
         div.addEventListener("click", function() {
           if (this.classList.contains("present")) {
             this.classList.remove("present");
@@ -107,12 +132,18 @@
             this.classList.add("present");
             nonFunctional--;
           }
+          savedData[this.dataset.date] = this.classList.contains("absent") ? "absent" :
+                                         this.classList.contains("non-functional") ? "non-functional" : "present";
+          localStorage.setItem("attendanceData", JSON.stringify(savedData));
           updateSummary();
         });
+
         daysDiv.appendChild(div);
       }
+
       calendar.appendChild(monthDiv);
     }
+
     function updateSummary() {
       let workingDays = total - nonFunctional;
       let presentDays = total - absent - nonFunctional;
@@ -123,13 +154,17 @@
       document.getElementById("workingCount").textContent = workingDays;
       document.getElementById("percentage").textContent = `${percentage}%`;
     }
+
     document.getElementById("markAbsentBtn").addEventListener("click", () => {
       if (total > absent) { absent++; updateSummary(); }
     });
+
     document.getElementById("resetBtn").addEventListener("click", () => {
       absent = 0; updateSummary();
     });
+
     updateSummary();
   </script>
 </body>
 </html>
+
