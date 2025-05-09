@@ -156,16 +156,29 @@
     }
 
     document.getElementById("markAbsentBtn").addEventListener("click", () => {
-      if (total > absent) { absent++; updateSummary(); }
-    });
-
-    document.getElementById("resetBtn").addEventListener("click", () => {
-      absent = 0; updateSummary();
-    });
-
+  const dates = Array.from(document.querySelectorAll(".day.present")).map(d => d.dataset.date);
+  if (dates.length > 0) {
+    const last = dates[dates.length - 1];
+    const div = document.querySelector(`.day[data-date="${last}"]`);
+    div.classList.remove("present");
+    div.classList.add("absent");
+    savedData[last] = "absent";
+    localStorage.setItem("attendanceData", JSON.stringify(savedData));
+    absent++;
     updateSummary();
-  </script>
+  }
+});
+
+document.getElementById("resetBtn").addEventListener("click", () => {
+  for (const date in savedData) {
+    if (savedData[date] === "absent") savedData[date] = "present";
+  }
+  localStorage.setItem("attendanceData", JSON.stringify(savedData));
+  location.reload();
+});
+</script>
 </body>
 </html>
+
 
 
